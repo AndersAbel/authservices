@@ -4,6 +4,8 @@ using FluentAssertions;
 using System.IdentityModel.Metadata;
 using System.Xml.Linq;
 using System.Linq;
+using Kentor.AuthServices.TestHelpers;
+using System.Security.Cryptography.Xml;
 
 namespace Kentor.AuthServices.Tests
 {
@@ -49,8 +51,11 @@ namespace Kentor.AuthServices.Tests
 
         XElement CreateSingleSignOnServiceXml()
         {
+            var keyInfoXml = XElement.Parse(SignedXmlHelper.KeyInfoXml);
+
             return new XElement(Saml2Namespaces.Saml2Metadata + "IDPSSODescriptor",
                 new XAttribute("protocolSupportEnumeration", "urn:oasis:names:tc:SAML:2.0:protocol"),
+                new XElement(Saml2Namespaces.Saml2Metadata + "KeyDescriptor", keyInfoXml),
                 new XElement(Saml2Namespaces.Saml2Metadata + "SingleSignOnService",
                 new XAttribute("Binding", Saml2Binding.HttpRedirectUri),
                 new XAttribute("Location", "https://idp.example.com/ssoservice")));
@@ -65,6 +70,21 @@ namespace Kentor.AuthServices.Tests
             subject.Load(xml);
 
             subject.SingleSignOnServices.Single().Binding.Should().Be(Saml2Binding.HttpRedirectUri);
+        }
+
+        [TestMethod]
+        public void IdentityProviderSingleSignOnDescriptor_Load_KeyInfo()
+        {
+            var xml = CreateSingleSignOnServiceXml();
+
+            var subject = new IdentityProviderSingleSignOnDescriptor();
+            subject.Load(xml);
+        }
+
+        [TestMethod]
+        public void IdentityProviderSingleSignOnDescriptor_Load_HandlesAbsentKeyInfo()
+        {
+            Assert.Inconclusive();
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System.Security.Cryptography.X509Certificates;
 using System.Xml;
 using Kentor.AuthServices;
+using System.Security.Cryptography.Xml;
 
 namespace Kentor.AuthServices.TestHelpers
 {
@@ -16,6 +17,16 @@ namespace Kentor.AuthServices.TestHelpers
             xmlDoc.Sign(TestCert);
 
             return xmlDoc.OuterXml;
+        }
+
+        public static readonly string KeyInfoXml;
+
+        static SignedXmlHelper()
+        {
+            var keyInfo = new KeyInfo();
+            keyInfo.AddClause(new KeyInfoX509Data(TestCert));
+
+            KeyInfoXml = keyInfo.GetXml().OuterXml;
         }
     }
 }
