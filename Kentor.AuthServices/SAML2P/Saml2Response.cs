@@ -74,7 +74,15 @@ namespace Kentor.AuthServices.Saml2P
 
                     var issuer = ReadIssuer(signatureValidatingReader);
 
-                    return new Saml2Response(id, inResponseTo, issueInstant, issuer, x);
+                    var status = ReadStatus(signatureValidatingReader);
+
+                    return new Saml2Response(
+                        id,
+                        inResponseTo,
+                        issueInstant,
+                        issuer,
+                        status,
+                        x);
                 }
             }
         }
@@ -94,12 +102,26 @@ namespace Kentor.AuthServices.Saml2P
             EntityId issuer = null;
             if (reader.IsStartElement("Issuer", Saml2Namespaces.Saml2Name))
             {
-                reader.ReadStartElement("Issuer", Saml2Namespaces.Saml2Name);
+                reader.ReadStartElement();
 
                 issuer = new EntityId(reader.ReadContentAsString().Trim());
+
+                reader.ReadEndElement();
             }
 
             return issuer;
+        }
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "StatusCode")]
+        private static Saml2StatusCode ReadStatus(XmlReader reader)
+        {
+            reader.ReadStartElement("Status", Saml2Namespaces.Saml2PName);
+            if(!reader.IsStartElement("StatusCode", Saml2Namespaces.Saml2PName))
+            {
+                throw new XmlException("Required <saml2p:StatusCode> element not found.");
+            }
+
+            return StatusCodeHelper.FromString(reader.GetAttribute("Value"));
         }
 
         private Saml2Response(
@@ -107,19 +129,16 @@ namespace Kentor.AuthServices.Saml2P
             Saml2Id inResponseTo,
             DateTime issueInstant,
             EntityId issuer,
+            Saml2StatusCode status,
             XmlDocument xml)
         {
             this.id = id;
             this.inResponseTo = inResponseTo;
             this.issueInstant = issueInstant;
             this.issuer = issuer;
+            this.status = status;
 
             xmlDocument = xml;
-
-            var statusString = xml.DocumentElement["Status", Saml2Namespaces.Saml2PName]
-                ["StatusCode", Saml2Namespaces.Saml2PName].Attributes["Value"].Value;
-
-            status = StatusCodeHelper.FromString(statusString);
 
             var destinationUrlString = xmlDocument.DocumentElement.Attributes["Destination"].GetValueIfNotNull();
 

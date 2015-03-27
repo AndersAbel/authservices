@@ -90,6 +90,26 @@ namespace Kentor.AuthServices.Tests.Saml2P
         }
 
         [TestMethod]
+        public void Saml2Response_Read_CheckStatusCodeName()
+        {
+            string response =
+            @"<?xml version=""1.0"" encoding=""UTF-8""?>
+                <saml2p:Response xmlns:saml2p=""urn:oasis:names:tc:SAML:2.0:protocol""
+            ID = ""Saml2Response_Read_CheckStatusCodeName"" Version=""2.0"" IssueInstant=""2013-01-01T00:00:00Z""
+            InResponseTo = ""InResponseToId""
+            Destination=""http://destination.example.com"">
+                <saml2p:Status>
+                    <saml2p:NotStatusCode Value=""urn:oasis:names:tc:SAML:2.0:status:Requester"" />
+                </saml2p:Status>
+            </saml2p:Response>";
+
+            Action a = () => Saml2Response.Read(response, StubFactory.CreateOptions());
+
+            a.ShouldThrow<XmlException>()
+                .WithMessage("Required <saml2p:StatusCode> element not found.");
+        }
+
+        [TestMethod]
         public void Saml2Response_Read_ThrowsOnNonXml()
         {
             Action a = () => Saml2Response.Read("not xml", StubFactory.CreateOptions());
