@@ -68,17 +68,19 @@ namespace Kentor.AuthServices.Saml2P
 
                     var id = new Saml2Id(signatureValidatingReader.GetAttribute("ID"));
                     var inResponseTo = ReadInResponseTo(signatureValidatingReader);
+                    var issueInstant = DateTime.Parse(signatureValidatingReader.GetAttribute("IssueInstant"),
+                        CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
 
                     signatureValidatingReader.ReadStartElement("Response", Saml2Namespaces.Saml2PName);
 
-                    return new Saml2Response(id, inResponseTo, x);
+                    return new Saml2Response(id, inResponseTo, issueInstant, x);
                 }
             }
         }
 
-        private static Saml2Id ReadInResponseTo(EnvelopedSignatureReader signatureValidatingReader)
+        private static Saml2Id ReadInResponseTo(XmlReader reader)
         {
-            var parsedInResponseTo = signatureValidatingReader.GetAttribute("InResponseTo");
+            var parsedInResponseTo = reader.GetAttribute("InResponseTo");
             if (parsedInResponseTo != null)
             {
                 return new Saml2Id(parsedInResponseTo);
@@ -86,15 +88,13 @@ namespace Kentor.AuthServices.Saml2P
             return null;
         }
 
-        private Saml2Response(Saml2Id id, Saml2Id inResponseTo, XmlDocument xml)
+        private Saml2Response(Saml2Id id, Saml2Id inResponseTo, DateTime issueInstant, XmlDocument xml)
         {
-            xmlDocument = xml;
-
             this.id = id;
             this.inResponseTo = inResponseTo;
+            this.issueInstant = issueInstant;
 
-            issueInstant = DateTime.Parse(xml.DocumentElement.Attributes["IssueInstant"].Value,
-                CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
+            xmlDocument = xml;
 
             var statusString = xml.DocumentElement["Status", Saml2Namespaces.Saml2PName]
                 ["StatusCode", Saml2Namespaces.Saml2PName].Attributes["Value"].Value;
