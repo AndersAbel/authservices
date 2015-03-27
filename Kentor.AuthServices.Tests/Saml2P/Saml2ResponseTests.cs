@@ -44,6 +44,22 @@ namespace Kentor.AuthServices.Tests.Saml2P
         }
 
         [TestMethod]
+        public void Saml2Response_Read_NullCheck_Xml()
+        {
+            Action a = () => Saml2Response.Read(null, StubFactory.CreateOptions());
+
+            a.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("xml");
+        }
+
+        [TestMethod]
+        public void Saml2Response_Read_NullCheck_Options()
+        {
+            Action a = () => Saml2Response.Read("<xml />", null);
+
+            a.ShouldThrow<ArgumentNullException>().And.ParamName.Should().Be("options");
+        }
+
+        [TestMethod]
         public void Saml2Response_Read_BasicParams()
         {
             string response =
@@ -69,14 +85,14 @@ namespace Kentor.AuthServices.Tests.Saml2P
                 RequestState = (StoredRequestState)null,
             };
 
-            Saml2Response.Read(response).ShouldBeEquivalentTo(expected,
+            Saml2Response.Read(response, StubFactory.CreateOptions()).ShouldBeEquivalentTo(expected,
                 opt => opt.Excluding(s => s.XmlDocument));
         }
 
         [TestMethod]
         public void Saml2Response_Read_ThrowsOnNonXml()
         {
-            Action a = () => Saml2Response.Read("not xml");
+            Action a = () => Saml2Response.Read("not xml", StubFactory.CreateOptions());
 
             a.ShouldThrow<XmlException>();
         }
@@ -84,25 +100,28 @@ namespace Kentor.AuthServices.Tests.Saml2P
         [TestMethod]
         public void Saml2Response_Read_ThrowsWrongRootNodeName()
         {
-            Action a = () => Saml2Response.Read("<saml2p:NotResponse xmlns:saml2p=\"urn:oasis:names:tc:SAML:2.0:protocol\" />");
+            Action a = () => Saml2Response.Read("<saml2p:NotResponse xmlns:saml2p=\"urn:oasis:names:tc:SAML:2.0:protocol\" />",
+                StubFactory.CreateOptions());
 
             a.ShouldThrow<XmlException>()
-                .WithMessage("Expected a SAML2 assertion document");
+                .WithMessage("Expected a SAML2 Response document.");
         }
 
         [TestMethod]
         public void Saml2Response_Read_ThrowsWrongRootNamespace()
         {
-            Action a = () => Saml2Response.Read("<saml2p:Response xmlns:saml2p=\"something\" /> ");
+            Action a = () => Saml2Response.Read("<saml2p:Response xmlns:saml2p=\"something\" /> ",
+                StubFactory.CreateOptions());
             a.ShouldThrow<XmlException>()
-                .WithMessage("Expected a SAML2 assertion document");
+                .WithMessage("Expected a SAML2 Response document.");
         }
 
         [TestMethod]
         public void Saml2Response_Read_ThrowsOnWrongVersion()
         {
             Action a = () => Saml2Response.Read("<saml2p:Response xmlns:saml2p=\""
-                + Saml2Namespaces.Saml2P + "\" Version=\"wrong\" />");
+                + Saml2Namespaces.Saml2P + "\" Version=\"wrong\" />",
+                StubFactory.CreateOptions());
 
             a.ShouldThrow<XmlException>()
                 .WithMessage("Wrong or unsupported SAML2 version");
@@ -125,7 +144,8 @@ namespace Kentor.AuthServices.Tests.Saml2P
                 </saml2p:Status>
             </saml2p:Response>";
 
-            Saml2Response.Read(response).Issuer.Id.Should().Be("https://some.issuer.example.com");
+            Saml2Response.Read(response, StubFactory.CreateOptions())
+                .Issuer.Id.Should().Be("https://some.issuer.example.com");
         }
 
         [TestMethod]
@@ -162,7 +182,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
                 </saml2:Assertion>
             </saml2p:Response>";
 
-            Action a = () => Saml2Response.Read(response).GetClaims(Options.FromConfiguration);
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(response, options).GetClaims(options);
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage("The SAML Response is not signed and contains unsigned Assertions. Response cannot be trusted.");
@@ -195,7 +217,7 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             var signedResponse = SignedXmlHelper.SignXml(response);
 
-            Action a = () => Saml2Response.Read(signedResponse).GetClaims(Options.FromConfiguration);
+            Action a = () => Saml2Response.Read(signedResponse, StubFactory.CreateOptions()).GetClaims(Options.FromConfiguration);
             a.ShouldNotThrow();
         }
 
@@ -230,7 +252,8 @@ namespace Kentor.AuthServices.Tests.Saml2P
             var signedAssertion = SignedXmlHelper.SignXml(assertion);
             var signedResponse = string.Format(response, signedAssertion);
 
-            Action a = () => Saml2Response.Read(signedResponse).GetClaims(Options.FromConfiguration);
+            Action a = () => Saml2Response.Read(signedResponse, StubFactory.CreateOptions())
+                .GetClaims(Options.FromConfiguration);
             a.ShouldNotThrow();
         }
 
@@ -263,7 +286,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
             var signedAssertion = SignedXmlHelper.SignXml(string.Format(assertion, Guid.NewGuid()), true, false);
             var signedResponse = string.Format(response, signedAssertion);
 
-            Action a = () => Saml2Response.Read(signedResponse).GetClaims(Options.FromConfiguration);
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(signedResponse, options).GetClaims(options);
             a.ShouldNotThrow();
         }
 
@@ -310,7 +335,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
             var signedAssertion2 = SignedXmlHelper.SignXml(assertion2);
             var signedResponse = string.Format(response, signedAssertion1, signedAssertion2);
 
-            Action a = () => Saml2Response.Read(signedResponse).GetClaims(Options.FromConfiguration);
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(signedResponse, options).GetClaims(options);
             a.ShouldNotThrow();
         }
 
@@ -355,7 +382,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
             var signedAssertion2 = SignedXmlHelper.SignXml(string.Format(assertion2, Guid.NewGuid()), true, false);
             var signedResponse = string.Format(response, signedAssertion1, signedAssertion2);
 
-            Action a = () => Saml2Response.Read(signedResponse).GetClaims(Options.FromConfiguration);
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(signedResponse, options).GetClaims(options);
             a.ShouldNotThrow();
         }
 
@@ -400,7 +429,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
             var signedAssertion1 = SignedXmlHelper.SignXml(assertion1);
             var signedResponse = string.Format(response, signedAssertion1, assertion2);
 
-            Action a = () => Saml2Response.Read(signedResponse).GetClaims(Options.FromConfiguration);
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(signedResponse, options).GetClaims(options);
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage("The SAML Response is not signed and contains unsigned Assertions. Response cannot be trusted.");
@@ -431,7 +462,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             var signedResponse = SignedXmlHelper.SignXml(response).Replace("SomeUser", "SomeOtherUser");
 
-            Action a = () => Saml2Response.Read(signedResponse).GetClaims(Options.FromConfiguration);
+            var options = Options.FromConfiguration;
+            
+            Action a = () => Saml2Response.Read(signedResponse, options).GetClaims(options);
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage("Signature validation failed on SAML response or contained assertion.");
@@ -478,7 +511,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
             var signedAssertion2 = SignedXmlHelper.SignXml(assertion2).Replace("SomeUser2", "SomeOtherUser");
             var signedResponse = string.Format(response, signedAssertion1, signedAssertion2);
 
-            Action a = () => Saml2Response.Read(signedResponse).GetClaims(Options.FromConfiguration);
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(signedResponse, options).GetClaims(options);
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage("Signature validation failed on SAML response or contained assertion.");
@@ -537,7 +572,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             var signedResponse = string.Format(response, signedAssertion1, signedAssertionToInject);
 
-            Action a = () => Saml2Response.Read(signedResponse).GetClaims(Options.FromConfiguration);
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(signedResponse, options).GetClaims(options);
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage("Incorrect reference on Xml signature. The reference must be to the root element of the element containing the signature.");
@@ -587,7 +624,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
             signedXml.ComputeSignature();
             xmlDoc.DocumentElement.AppendChild(xmlDoc.ImportNode(signedXml.GetXml(), true));
 
-            Action a = () => Saml2Response.Read(xmlDoc.OuterXml).GetClaims(Options.FromConfiguration);
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(xmlDoc.OuterXml, options).GetClaims(options);
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage("Multiple references for Xml signatures are not allowed.");
@@ -627,7 +666,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
             signedXml.ComputeSignature();
             xmlDoc.DocumentElement.AppendChild(xmlDoc.ImportNode(signedXml.GetXml(), true));
 
-            Action a = () => Saml2Response.Read(xmlDoc.OuterXml).GetClaims(Options.FromConfiguration);
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(xmlDoc.OuterXml, options).GetClaims(options);
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage("Transform \"http://www.w3.org/TR/2001/REC-xml-c14n-20010315\" found in XML signature is not allowed in SAML.");
@@ -638,7 +679,7 @@ namespace Kentor.AuthServices.Tests.Saml2P
         {
             var signedWithoutReference = @"<saml2p:Response xmlns:saml2p=""urn:oasis:names:tc:SAML:2.0:protocol"" xmlns:saml2=""urn:oasis:names:tc:SAML:2.0:assertion"" ID=""Saml2Response_Validate_FalseOnMissingReference"" Version=""2.0"" IssueInstant=""2013-01-01T00:00:00Z""><saml2:Issuer>https://idp.example.com</saml2:Issuer><saml2p:Status><saml2p:StatusCode Value=""urn:oasis:names:tc:SAML:2.0:status:Requester"" /></saml2p:Status><Signature xmlns=""http://www.w3.org/2000/09/xmldsig#""><SignedInfo><CanonicalizationMethod Algorithm=""http://www.w3.org/TR/2001/REC-xml-c14n-20010315"" /><SignatureMethod Algorithm=""http://www.w3.org/2000/09/xmldsig#rsa-sha1"" /></SignedInfo><SignatureValue>tYFIoYmrzmp3H7TXm9IS8DW3buBZIb6sI2ycrn+AOnVcdYnPTJpk3ntHlqQKXNEyXgXZNdqEuFpgI1I0P0TlhM+C3rBJnflkApkxZkak5RwnJzDWTHpsSDjYcm+/XgBy3JVZJuMWb2YPaV8GB6cjBMDrENUEaoKRg+FpzPUZO1EOMcqbocXp5cHie1CkPnD1OtT/cuzMBUMpBGZMxjZwdFpOO7R3CUXh/McxKfoGUQGC3DVpt5T8uGkpj4KqZVPS/qTCRhbPRDjg73BdWbdkFpFWge8G/FgkYxr9LBE1TsrxptppO9xoA5jXwJVZaWndSMvo6TuOjUgqY2w5RTkqhA==</SignatureValue></Signature></saml2p:Response>";
 
-            var samlResponse = Saml2Response.Read(signedWithoutReference);
+            var samlResponse = Saml2Response.Read(signedWithoutReference, StubFactory.CreateOptions());
 
             Action a = () => samlResponse.GetClaims(Options.FromConfiguration);
 
@@ -661,9 +702,11 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             var signedResponse = SignedXmlHelper.SignXml(response);
 
-            var samlResponse = Saml2Response.Read(signedResponse);
+            var options = Options.FromConfiguration;
 
-            Action a = () => samlResponse.GetClaims(Options.FromConfiguration);
+            var samlResponse = Saml2Response.Read(signedResponse, options);
+
+            Action a = () => samlResponse.GetClaims(options);
 
             a.ShouldNotThrow();
             a.ShouldNotThrow();
@@ -711,7 +754,7 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             var expected = new ClaimsIdentity[] { c1, c2 };
 
-            var r = Saml2Response.Read(SignedXmlHelper.SignXml(response));
+            var r = Saml2Response.Read(SignedXmlHelper.SignXml(response), StubFactory.CreateOptions());
 
             r.GetClaims(StubFactory.CreateOptions())
                 .ShouldBeEquivalentTo(expected, opt => opt.IgnoringCyclicReferences());
@@ -751,7 +794,7 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             var expected = options.SPOptions.Saml2PSecurityTokenHandler.ReadToken(XmlReader.Create(new StringReader(assertion)));
 
-            var r = Saml2Response.Read(SignedXmlHelper.SignXml(response));
+            var r = Saml2Response.Read(SignedXmlHelper.SignXml(response), StubFactory.CreateOptions());
 
             var subject = r.GetClaims(options).Single().BootstrapContext;
 
@@ -784,9 +827,11 @@ namespace Kentor.AuthServices.Tests.Saml2P
             response = SignedXmlHelper.SignXml(response);
             response = response.Replace("2013-09-25", "2013-09-26");
 
-            var r = Saml2Response.Read(response);
+            var options = Options.FromConfiguration;
 
-            Action a = () => r.GetRequestState(Options.FromConfiguration);
+            var r = Saml2Response.Read(response, options);
+
+            Action a = () => r.GetRequestState(options);
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage("Signature validation failed on SAML response or contained assertion.");
@@ -827,9 +872,11 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             response = SignedXmlHelper.SignXml(response);
 
-            var r = Saml2Response.Read(response);
+            var options = Options.FromConfiguration;
 
-            Action a = () => r.GetClaims(Options.FromConfiguration);
+            var r = Saml2Response.Read(response, options);
+
+            Action a = () => r.GetClaims(options);
 
             a.ShouldThrow<AudienceUriValidationFailedException>();
         }
@@ -859,9 +906,12 @@ namespace Kentor.AuthServices.Tests.Saml2P
             </saml2p:Response>";
 
             response = SignedXmlHelper.SignXml(response);
-            var r = Saml2Response.Read(response);
 
-            Action a = () => r.GetClaims(Options.FromConfiguration);
+            var options = Options.FromConfiguration;
+
+            var r = Saml2Response.Read(response, options);
+
+            Action a = () => r.GetClaims(options);
 
             a.ShouldThrow<SecurityTokenExpiredException>();
         }
@@ -887,9 +937,11 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             responseXML = SignedXmlHelper.SignXml(responseXML);
 
-            var response = Saml2Response.Read(responseXML);
+            var options = Options.FromConfiguration;
 
-            Action a = () => response.GetClaims(Options.FromConfiguration);
+            var response = Saml2Response.Read(responseXML, options);
+
+            Action a = () => response.GetClaims(options);
             a.ShouldNotThrow();
         }
 
@@ -909,9 +961,11 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             responseXML = SignedXmlHelper.SignXml(responseXML);
 
-            var response = Saml2Response.Read(responseXML);
+            var options = Options.FromConfiguration;
 
-            Action a = () => response.GetClaims(Options.FromConfiguration);
+            var response = Saml2Response.Read(responseXML, options);
+
+            Action a = () => response.GetClaims(options);
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage("Unsolicited responses are not allowed for idp \"https://idp2.example.com\".");
@@ -937,9 +991,11 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             responseXML = SignedXmlHelper.SignXml(responseXML);
 
-            var response = Saml2Response.Read(responseXML);
+            var options = Options.FromConfiguration;
 
-            Action a = () => response.GetClaims(Options.FromConfiguration);
+            var response = Saml2Response.Read(responseXML, options);
+
+            Action a = () => response.GetClaims(options);
             a.ShouldNotThrow();
         }
 
@@ -964,9 +1020,11 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             responseXML = SignedXmlHelper.SignXml(responseXML);
 
-            var response = Saml2Response.Read(responseXML);
+            var options = Options.FromConfiguration;
 
-            Action a = () => response.GetClaims(Options.FromConfiguration);
+            var response = Saml2Response.Read(responseXML, options);
+
+            Action a = () => response.GetClaims(options);
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage("Replayed or unknown InResponseTo \"anothervalue\".");
@@ -995,8 +1053,10 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             Action a = () =>
             {
-                var response = Saml2Response.Read(responseXML);
-                response.GetClaims(Options.FromConfiguration);
+                var options = Options.FromConfiguration;
+
+                var response = Saml2Response.Read(responseXML, options);
+                response.GetClaims(options);
             };
 
             a.ShouldNotThrow();
@@ -1026,11 +1086,13 @@ namespace Kentor.AuthServices.Tests.Saml2P
             responseXML = SignedXmlHelper.SignXml(responseXML);
             responseXML = responseXML.Replace("2013-01-01", "2015-01-01"); // Break signature.
 
-            var response = Saml2Response.Read(responseXML);
+            var options = Options.FromConfiguration;
+
+            var response = Saml2Response.Read(responseXML, options);
 
             Action a = () =>
             {
-                response.GetClaims(Options.FromConfiguration);
+                response.GetClaims(options);
             };
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
@@ -1069,9 +1131,11 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             responseXML = SignedXmlHelper.SignXml(responseXML);
 
-            var response = Saml2Response.Read(responseXML);
+            var options = Options.FromConfiguration;
 
-            Action a = () => response.GetClaims(Options.FromConfiguration);
+            var response = Saml2Response.Read(responseXML, options);
+
+            Action a = () => response.GetClaims(options);
 
             a.ShouldThrow<Saml2ResponseFailedValidationException>().And
                 .Message.Should().Be("Expected response from idp \"https://idp.example.com\" but received response from idp \"https://idp.anotheridp.com\".");
@@ -1102,13 +1166,15 @@ namespace Kentor.AuthServices.Tests.Saml2P
                 </saml2:Assertion>
             </saml2p:Response>";
 
+            var options = Options.FromConfiguration;
+
             response = SignedXmlHelper.SignXml(response);
-            var r1 = Saml2Response.Read(response);
+            var r1 = Saml2Response.Read(response, options);
             r1.GetClaims(Options.FromConfiguration);
 
-            var r2 = Saml2Response.Read(response);
+            var r2 = Saml2Response.Read(response, options);
 
-            Action a = () => r2.GetClaims(Options.FromConfiguration);
+            Action a = () => r2.GetClaims(options);
 
             a.ShouldThrow<SecurityTokenReplayDetectedException>();
         }
@@ -1139,9 +1205,11 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             var xml = SignedXmlHelper.SignXml(response);
 
-            var subject = Saml2Response.Read(xml);
+            var options = Options.FromConfiguration;
 
-            Action a = () => subject.GetClaims(Options.FromConfiguration);
+            var subject = Saml2Response.Read(xml, options);
+
+            Action a = () => subject.GetClaims(options);
 
             a.ShouldThrow<InvalidOperationException>()
                 .WithMessage("The Saml2Response must have status success to extract claims.");
@@ -1262,7 +1330,7 @@ namespace Kentor.AuthServices.Tests.Saml2P
         {
             string response = @"<?xml version=""1.0"" encoding=""UTF-8""?><saml2p:Response xmlns:saml2p=""urn:oasis:names:tc:SAML:2.0:protocol"" ID=""Saml2Response_ToXml"" Version=""2.0"" IssueInstant=""2013-01-01T00:00:00Z""><saml2p:Status><saml2p:StatusCode Value=""urn:oasis:names:tc:SAML:2.0:status:Requester"" /></saml2p:Status></saml2p:Response>";
 
-            var subject = Saml2Response.Read(response).ToXml();
+            var subject = Saml2Response.Read(response, StubFactory.CreateOptions()).ToXml();
 
             subject.Should().Be(response);
         }
@@ -1296,9 +1364,11 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             responseXML = SignedXmlHelper.SignXml(responseXML);
 
-            var response = Saml2Response.Read(responseXML);
+            var options = Options.FromConfiguration;
 
-            response.GetRequestState(Options.FromConfiguration)
+            var response = Saml2Response.Read(responseXML, options);
+
+            response.GetRequestState(options)
                 .ReturnUrl.Should().Be("http://localhost/testUrl.aspx");
         }
 
@@ -1318,7 +1388,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
                     <Assertion ID=""Saml2Response_GetClaims_ThrowsInformativeExceptionForSha256"" IssueInstant=""2015-03-13T20:43:07.330Z"" Version=""2.0"" xmlns=""urn:oasis:names:tc:SAML:2.0:assertion""><Issuer>https://idp.example.com</Issuer><Signature xmlns=""http://www.w3.org/2000/09/xmldsig#""><SignedInfo><CanonicalizationMethod Algorithm=""http://www.w3.org/2001/10/xml-exc-c14n#"" /><SignatureMethod Algorithm=""http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"" /><Reference URI=""#Saml2Response_GetClaims_ThrowsInformativeExceptionForSha256""><Transforms><Transform Algorithm=""http://www.w3.org/2000/09/xmldsig#enveloped-signature"" /><Transform Algorithm=""http://www.w3.org/2001/10/xml-exc-c14n#"" /></Transforms><DigestMethod Algorithm=""http://www.w3.org/2001/04/xmlenc#sha256"" /><DigestValue>F+E7u3vqMC07ipvP9AowsMqP7y6CsAC0GeEIxNSwDEI=</DigestValue></Reference></SignedInfo><SignatureValue>GmiXn24Ccnr64TbmDd1/nLM+891z0FtRHSpU8+75uOqbpNK/ZZGrltFf2YZ5u9b9O0HfbFFsZ0i28ocwAZOv2UfxQrCtOGf3ss7Q+t2Zmc6Q/3ES7HIa15I5BbaSdNfpOMlX6N1XXhMprRGy2YWMr5IAIhysFG1A2oHaC3yFiesfUrawN/lXUYuI22Kf4A5bmnIkKijnwX9ewnhRj6569bw+c6q+tVZSHQzI+KMU9KbKN4NsXxAmv6dM1w2qOiX9/CO9LzwEtlhA9yo3sl0uWP8z5GwK9qgOlsF2NdImAQ5f0U4Uv26doFn09W+VExFwNhcXhewQUuPBYBr+XXzdww==</SignatureValue><KeyInfo><X509Data><X509Certificate>MIIDIzCCAg+gAwIBAgIQg7mOjTf994NAVxZu4jqXpzAJBgUrDgMCHQUAMCQxIjAgBgNVBAMTGUtlbnRvci5BdXRoU2VydmljZXMuVGVzdHMwHhcNMTMwOTI1MTMzNTQ0WhcNMzkxMjMxMjM1OTU5WjAkMSIwIAYDVQQDExlLZW50b3IuQXV0aFNlcnZpY2VzLlRlc3RzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwVGpfvK9N//MnA5Jo1q2liyPR24406Dp25gv7LB3HK4DWgqsb7xXM6KIV/WVOyCV2g/O1ErBlB+HLhVZ4XUJvbqBbgAJqFO+TZwcCIe8u4nTEXeU660FdtkKClA17sbtMrAGdDfOPwVBHSuavdHeD7jHNI4RUDGKnEW13/0EvnHDilIetwODRxrX/+41R24sJThFbMczByS3OAL2dcIxoAynaGeM90gXsVYow1QhJUy21+cictikb7jW4mW6dvFCBrWIceom9J295DcQIHoxJy5NoZwMir/JV00qs1wDVoN20Ve1DC5ImwcG46XPF7efQ44yLh2j5Yexw+xloA81dwIDAQABo1kwVzBVBgNVHQEETjBMgBAWIahoZhXVUogbAqkS7zwfoSYwJDEiMCAGA1UEAxMZS2VudG9yLkF1dGhTZXJ2aWNlcy5UZXN0c4IQg7mOjTf994NAVxZu4jqXpzAJBgUrDgMCHQUAA4IBAQA2aGzmuKw4AYXWMhrGj5+i8vyAoifUn1QVOFsUukEA77CrqhqqaWFoeagfJp/45vlvrfrEwtF0QcWfmO9w1VvHwm7sk1G/cdYyJ71sU+llDsdPZm7LxQvWZYkK+xELcinQpSwt4ExavS+jLcHoOYHYwIZMBn3U8wZw7Kq29oGnoFQz7HLCEl/G9i3QRyvFITNlWTjoScaqMjHTzq6HCMaRsL09DLcY3KB+cedfpC0/MBlzaxZv0DctTulyaDfM9DCYOyokGN/rQ6qkAR0DDm8fVwknbJY7kURXNGoUetulTb5ow8BvD1gncOaYHSD0kbHZG+bLsUZDFatEr2KW8jbG</X509Certificate></X509Data></KeyInfo></Signature><Subject><NameID>SomeUser</NameID><SubjectConfirmation Method=""urn:oasis:names:tc:SAML:2.0:cm:bearer"" /></Subject><Conditions NotOnOrAfter=""2100-01-01T05:00:00.000Z"" /></Assertion>
                 </saml2p:Response>";
 
-            Action a = () => Saml2Response.Read( signedResponse ).GetClaims( Options.FromConfiguration );
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(signedResponse, options).GetClaims(options);
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage( "SHA256 signatures require the algorithm to be registered at the process level. Call Kentor.AuthServices.Configuration.Options.GlobalEnableSha256XmlSignatures() on startup to register." );
 
@@ -1341,7 +1413,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
                         <Assertion ID=""Saml2Response_GetClaims_ChecksSha256WhenEnabled"" IssueInstant=""2015-03-13T20:43:33.466Z"" Version=""2.0"" xmlns=""urn:oasis:names:tc:SAML:2.0:assertion""><Issuer>https://idp.example.com</Issuer><Signature xmlns=""http://www.w3.org/2000/09/xmldsig#""><SignedInfo><CanonicalizationMethod Algorithm=""http://www.w3.org/2001/10/xml-exc-c14n#"" /><SignatureMethod Algorithm=""http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"" /><Reference URI=""#Saml2Response_GetClaims_ChecksSha256WhenEnabled""><Transforms><Transform Algorithm=""http://www.w3.org/2000/09/xmldsig#enveloped-signature"" /><Transform Algorithm=""http://www.w3.org/2001/10/xml-exc-c14n#"" /></Transforms><DigestMethod Algorithm=""http://www.w3.org/2001/04/xmlenc#sha256"" /><DigestValue>8s5HDYeicqbNwESGyrvYYXinJeJJgl4t6O27KGE0ejc=</DigestValue></Reference></SignedInfo><SignatureValue>mS2TFErenJHyvUbyIDUItOvH6AavUNGg5zL3hVueWDGjhaft2mlWSlQIFm9ajVQKrZq2Q/V4oZYGTQ8muTfrhdCL3fyu453nEWcNgQ+gm1H1e89N75XWonfL+UQDl73O95SX0dD4DjqQAC4MlSwMOkwOR7GakhjPbSzRct7lFbRx/3k+TUZNj9rfV4uzlf79ebkw9EaaSfu0tR6bAfGyrefFaNTZs2NeRICfD/GKn7HRo9zSdVPBHfEW2UUy0x/aWREG4GgUs7qObWL4uhDZ6oyy5FbsRcrUJMiXCFNXA8dr9EtZ2VafHz3d4kJFLiq63xjqpjGk/ng2gP+47F/9Rw==</SignatureValue><KeyInfo><X509Data><X509Certificate>MIIDIzCCAg+gAwIBAgIQg7mOjTf994NAVxZu4jqXpzAJBgUrDgMCHQUAMCQxIjAgBgNVBAMTGUtlbnRvci5BdXRoU2VydmljZXMuVGVzdHMwHhcNMTMwOTI1MTMzNTQ0WhcNMzkxMjMxMjM1OTU5WjAkMSIwIAYDVQQDExlLZW50b3IuQXV0aFNlcnZpY2VzLlRlc3RzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwVGpfvK9N//MnA5Jo1q2liyPR24406Dp25gv7LB3HK4DWgqsb7xXM6KIV/WVOyCV2g/O1ErBlB+HLhVZ4XUJvbqBbgAJqFO+TZwcCIe8u4nTEXeU660FdtkKClA17sbtMrAGdDfOPwVBHSuavdHeD7jHNI4RUDGKnEW13/0EvnHDilIetwODRxrX/+41R24sJThFbMczByS3OAL2dcIxoAynaGeM90gXsVYow1QhJUy21+cictikb7jW4mW6dvFCBrWIceom9J295DcQIHoxJy5NoZwMir/JV00qs1wDVoN20Ve1DC5ImwcG46XPF7efQ44yLh2j5Yexw+xloA81dwIDAQABo1kwVzBVBgNVHQEETjBMgBAWIahoZhXVUogbAqkS7zwfoSYwJDEiMCAGA1UEAxMZS2VudG9yLkF1dGhTZXJ2aWNlcy5UZXN0c4IQg7mOjTf994NAVxZu4jqXpzAJBgUrDgMCHQUAA4IBAQA2aGzmuKw4AYXWMhrGj5+i8vyAoifUn1QVOFsUukEA77CrqhqqaWFoeagfJp/45vlvrfrEwtF0QcWfmO9w1VvHwm7sk1G/cdYyJ71sU+llDsdPZm7LxQvWZYkK+xELcinQpSwt4ExavS+jLcHoOYHYwIZMBn3U8wZw7Kq29oGnoFQz7HLCEl/G9i3QRyvFITNlWTjoScaqMjHTzq6HCMaRsL09DLcY3KB+cedfpC0/MBlzaxZv0DctTulyaDfM9DCYOyokGN/rQ6qkAR0DDm8fVwknbJY7kURXNGoUetulTb5ow8BvD1gncOaYHSD0kbHZG+bLsUZDFatEr2KW8jbG</X509Certificate></X509Data></KeyInfo></Signature><Subject><NameID>SomeUser</NameID><SubjectConfirmation Method=""urn:oasis:names:tc:SAML:2.0:cm:bearer"" /></Subject><Conditions NotOnOrAfter=""2100-01-01T05:00:00.000Z"" /></Assertion>
                     </saml2p:Response>";
 
-            Action a = () => Saml2Response.Read( signedResponse ).GetClaims( Options.FromConfiguration );
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(signedResponse, options).GetClaims(options);
             a.ShouldNotThrow();
         }
 
@@ -1366,7 +1440,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
                     <Assertion ID=""Saml2Response_GetClaims_ThrowsInformativeExceptionForSha256"" IssueInstant=""2015-03-13T20:43:07.330Z"" Version=""2.0"" xmlns=""urn:oasis:names:tc:SAML:2.0:assertion""><Issuer>https://idp.example.com</Issuer><Signature xmlns=""http://www.w3.org/2000/09/xmldsig#""><SignedInfo><CanonicalizationMethod Algorithm=""http://www.w3.org/2001/10/xml-exc-c14n#"" /><SignatureMethod Algorithm=""http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"" /><Reference URI=""#Saml2Response_GetClaims_ThrowsInformativeExceptionForSha256""><Transforms><Transform Algorithm=""http://www.w3.org/2000/09/xmldsig#enveloped-signature"" /><Transform Algorithm=""http://www.w3.org/2001/10/xml-exc-c14n#"" /></Transforms><DigestMethod Algorithm=""http://www.w3.org/2001/04/xmlenc#LLL"" /><DigestValue>F+E7u3vqMC07ipvP9AowsMqP7y6CsAC0GeEIxNSwDEI=</DigestValue></Reference></SignedInfo><SignatureValue>GmiXn24Ccnr64TbmDd1/nLM+891z0FtRHSpU8+75uOqbpNK/ZZGrltFf2YZ5u9b9O0HfbFFsZ0i28ocwAZOv2UfxQrCtOGf3ss7Q+t2Zmc6Q/3ES7HIa15I5BbaSdNfpOMlX6N1XXhMprRGy2YWMr5IAIhysFG1A2oHaC3yFiesfUrawN/lXUYuI22Kf4A5bmnIkKijnwX9ewnhRj6569bw+c6q+tVZSHQzI+KMU9KbKN4NsXxAmv6dM1w2qOiX9/CO9LzwEtlhA9yo3sl0uWP8z5GwK9qgOlsF2NdImAQ5f0U4Uv26doFn09W+VExFwNhcXhewQUuPBYBr+XXzdww==</SignatureValue><KeyInfo><X509Data><X509Certificate>MIIDIzCCAg+gAwIBAgIQg7mOjTf994NAVxZu4jqXpzAJBgUrDgMCHQUAMCQxIjAgBgNVBAMTGUtlbnRvci5BdXRoU2VydmljZXMuVGVzdHMwHhcNMTMwOTI1MTMzNTQ0WhcNMzkxMjMxMjM1OTU5WjAkMSIwIAYDVQQDExlLZW50b3IuQXV0aFNlcnZpY2VzLlRlc3RzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwVGpfvK9N//MnA5Jo1q2liyPR24406Dp25gv7LB3HK4DWgqsb7xXM6KIV/WVOyCV2g/O1ErBlB+HLhVZ4XUJvbqBbgAJqFO+TZwcCIe8u4nTEXeU660FdtkKClA17sbtMrAGdDfOPwVBHSuavdHeD7jHNI4RUDGKnEW13/0EvnHDilIetwODRxrX/+41R24sJThFbMczByS3OAL2dcIxoAynaGeM90gXsVYow1QhJUy21+cictikb7jW4mW6dvFCBrWIceom9J295DcQIHoxJy5NoZwMir/JV00qs1wDVoN20Ve1DC5ImwcG46XPF7efQ44yLh2j5Yexw+xloA81dwIDAQABo1kwVzBVBgNVHQEETjBMgBAWIahoZhXVUogbAqkS7zwfoSYwJDEiMCAGA1UEAxMZS2VudG9yLkF1dGhTZXJ2aWNlcy5UZXN0c4IQg7mOjTf994NAVxZu4jqXpzAJBgUrDgMCHQUAA4IBAQA2aGzmuKw4AYXWMhrGj5+i8vyAoifUn1QVOFsUukEA77CrqhqqaWFoeagfJp/45vlvrfrEwtF0QcWfmO9w1VvHwm7sk1G/cdYyJ71sU+llDsdPZm7LxQvWZYkK+xELcinQpSwt4ExavS+jLcHoOYHYwIZMBn3U8wZw7Kq29oGnoFQz7HLCEl/G9i3QRyvFITNlWTjoScaqMjHTzq6HCMaRsL09DLcY3KB+cedfpC0/MBlzaxZv0DctTulyaDfM9DCYOyokGN/rQ6qkAR0DDm8fVwknbJY7kURXNGoUetulTb5ow8BvD1gncOaYHSD0kbHZG+bLsUZDFatEr2KW8jbG</X509Certificate></X509Data></KeyInfo></Signature><Subject><NameID>SomeUser</NameID><SubjectConfirmation Method=""urn:oasis:names:tc:SAML:2.0:cm:bearer"" /></Subject><Conditions NotOnOrAfter=""2100-01-01T05:00:00.000Z"" /></Assertion>
                 </saml2p:Response>";
 
-            Action a = () => Saml2Response.Read( signedResponse ).GetClaims( Options.FromConfiguration );
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(signedResponse, options).GetClaims(options);
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage( "Signature validation failed on SAML response or contained assertion." );
         }
@@ -1390,7 +1466,9 @@ namespace Kentor.AuthServices.Tests.Saml2P
 
             signedResponse = signedResponse.Replace( "SomeUser", "AnotherUser" );
 
-            Action a = () => Saml2Response.Read( signedResponse ).GetClaims( Options.FromConfiguration );
+            var options = Options.FromConfiguration;
+
+            Action a = () => Saml2Response.Read(signedResponse, options).GetClaims(options);
             a.ShouldThrow<Saml2ResponseFailedValidationException>()
                 .WithMessage( "Signature validation failed on SAML response or contained assertion." );
 

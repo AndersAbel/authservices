@@ -32,7 +32,7 @@ namespace Kentor.AuthServices.WebSso
             {
                 try
                 {
-                    var samlResponse = Saml2Response.Read(binding.Unbind(request));
+                    var samlResponse = Saml2Response.Read(binding.Unbind(request), options);
 
                     return ProcessResponse(options, samlResponse);
                 }

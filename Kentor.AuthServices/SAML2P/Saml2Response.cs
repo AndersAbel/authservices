@@ -12,6 +12,7 @@ using System.IdentityModel.Metadata;
 using System.Security.Cryptography;
 using System.IdentityModel.Services;
 using Kentor.AuthServices.Internal;
+using System.IdentityModel;
 
 namespace Kentor.AuthServices.Saml2P
 {
@@ -28,23 +29,45 @@ namespace Kentor.AuthServices.Saml2P
         /// Read the supplied Xml and parse it into a response.
         /// </summary>
         /// <param name="xml">xml data.</param>
+        /// <param name="options">The options to use when processing the response.</param>
         /// <returns>Saml2Response</returns>
         /// <exception cref="XmlException">On xml errors or unexpected xml structure.</exception>
-        public static Saml2Response Read(string xml)
+        public static Saml2Response Read(string xml, IOptions options)
         {
-            var x = new XmlDocument();
-            x.PreserveWhitespace = true;
-            x.LoadXml(xml);
-
-            if (x.DocumentElement.LocalName != "Response"
-                || x.DocumentElement.NamespaceURI != Saml2Namespaces.Saml2P)
+            if(xml == null)
             {
-                throw new XmlException("Expected a SAML2 assertion document");
+                throw new ArgumentNullException("xml");
             }
 
-            if (x.DocumentElement.Attributes["Version"].Value != "2.0")
+            if(options == null)
             {
-                throw new XmlException("Wrong or unsupported SAML2 version");
+                throw new ArgumentNullException("options");
+            }
+
+            var x = new XmlDocument()
+            {
+                PreserveWhitespace = true
+            };
+            x.LoadXml(xml);
+
+            using(var nodeReader = new XmlNodeReader(x.DocumentElement))
+            {
+                var keyInfoSerializer = options.SPOptions.Saml2PSecurityTokenHandler.KeyInfoSerializer;
+
+                using (var signatureValidatingReader = new EnvelopedSignatureReader(nodeReader, keyInfoSerializer))
+                {
+                    if(!signatureValidatingReader.IsStartElement("Response", Saml2Namespaces.Saml2PName))
+                    {
+                        throw new XmlException("Expected a SAML2 Response document.");
+                    }
+
+                    if (signatureValidatingReader.GetAttribute("Version") != "2.0")
+                    {
+                        throw new XmlException("Wrong or unsupported SAML2 version");
+                    }
+
+                    signatureValidatingReader.ReadStartElement("Response", Saml2Namespaces.Saml2PName);
+                }
             }
 
             return new Saml2Response(x);
