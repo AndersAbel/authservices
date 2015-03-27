@@ -67,25 +67,31 @@ namespace Kentor.AuthServices.Saml2P
                     }
 
                     var id = new Saml2Id(signatureValidatingReader.GetAttribute("ID"));
+                    var inResponseTo = ReadInResponseTo(signatureValidatingReader);
 
                     signatureValidatingReader.ReadStartElement("Response", Saml2Namespaces.Saml2PName);
 
-                    return new Saml2Response(id, x);
+                    return new Saml2Response(id, inResponseTo, x);
                 }
             }
         }
 
-        private Saml2Response(Saml2Id id, XmlDocument xml)
+        private static Saml2Id ReadInResponseTo(EnvelopedSignatureReader signatureValidatingReader)
+        {
+            var parsedInResponseTo = signatureValidatingReader.GetAttribute("InResponseTo");
+            if (parsedInResponseTo != null)
+            {
+                return new Saml2Id(parsedInResponseTo);
+            }
+            return null;
+        }
+
+        private Saml2Response(Saml2Id id, Saml2Id inResponseTo, XmlDocument xml)
         {
             xmlDocument = xml;
 
             this.id = id;
-
-            var parsedInResponseTo = xml.DocumentElement.Attributes["InResponseTo"].GetValueIfNotNull();
-            if (parsedInResponseTo != null)
-            {
-                inResponseTo = new Saml2Id(parsedInResponseTo);
-            }
+            this.inResponseTo = inResponseTo;
 
             issueInstant = DateTime.Parse(xml.DocumentElement.Attributes["IssueInstant"].Value,
                 CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
