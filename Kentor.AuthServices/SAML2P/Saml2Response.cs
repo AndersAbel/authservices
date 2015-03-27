@@ -66,18 +66,20 @@ namespace Kentor.AuthServices.Saml2P
                         throw new XmlException("Wrong or unsupported SAML2 version");
                     }
 
+                    var id = new Saml2Id(signatureValidatingReader.GetAttribute("ID"));
+
                     signatureValidatingReader.ReadStartElement("Response", Saml2Namespaces.Saml2PName);
+
+                    return new Saml2Response(id, x);
                 }
             }
-
-            return new Saml2Response(x);
         }
 
-        private Saml2Response(XmlDocument xml)
+        private Saml2Response(Saml2Id id, XmlDocument xml)
         {
             xmlDocument = xml;
 
-            id = new Saml2Id(xml.DocumentElement.Attributes["ID"].Value);
+            this.id = id;
 
             var parsedInResponseTo = xml.DocumentElement.Attributes["InResponseTo"].GetValueIfNotNull();
             if (parsedInResponseTo != null)
