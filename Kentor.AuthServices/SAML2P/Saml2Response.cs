@@ -70,10 +70,11 @@ namespace Kentor.AuthServices.Saml2P
                     var inResponseTo = ReadInResponseTo(signatureValidatingReader);
                     var issueInstant = DateTime.Parse(signatureValidatingReader.GetAttribute("IssueInstant"),
                         CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
-
                     signatureValidatingReader.ReadStartElement("Response", Saml2Namespaces.Saml2PName);
 
-                    return new Saml2Response(id, inResponseTo, issueInstant, x);
+                    var issuer = ReadIssuer(signatureValidatingReader);
+
+                    return new Saml2Response(id, inResponseTo, issueInstant, issuer, x);
                 }
             }
         }
@@ -88,11 +89,30 @@ namespace Kentor.AuthServices.Saml2P
             return null;
         }
 
-        private Saml2Response(Saml2Id id, Saml2Id inResponseTo, DateTime issueInstant, XmlDocument xml)
+        private static EntityId ReadIssuer(XmlReader reader)
+        {
+            EntityId issuer = null;
+            if (reader.IsStartElement("Issuer", Saml2Namespaces.Saml2Name))
+            {
+                reader.ReadStartElement("Issuer", Saml2Namespaces.Saml2Name);
+
+                issuer = new EntityId(reader.ReadContentAsString().Trim());
+            }
+
+            return issuer;
+        }
+
+        private Saml2Response(
+            Saml2Id id,
+            Saml2Id inResponseTo,
+            DateTime issueInstant,
+            EntityId issuer,
+            XmlDocument xml)
         {
             this.id = id;
             this.inResponseTo = inResponseTo;
             this.issueInstant = issueInstant;
+            this.issuer = issuer;
 
             xmlDocument = xml;
 
@@ -100,8 +120,6 @@ namespace Kentor.AuthServices.Saml2P
                 ["StatusCode", Saml2Namespaces.Saml2PName].Attributes["Value"].Value;
 
             status = StatusCodeHelper.FromString(statusString);
-
-            issuer = new EntityId(xmlDocument.DocumentElement["Issuer", Saml2Namespaces.Saml2Name].GetTrimmedTextIfNotNull());
 
             var destinationUrlString = xmlDocument.DocumentElement.Attributes["Destination"].GetValueIfNotNull();
 

@@ -78,7 +78,7 @@ namespace Kentor.AuthServices.Tests.Saml2P
                 Id = new Saml2Id("Saml2Response_Read_BasicParams"),
                 IssueInstant = new DateTime(2013, 01, 01, 0, 0, 0, DateTimeKind.Utc),
                 Status = Saml2StatusCode.Requester,
-                Issuer = new EntityId(null),
+                Issuer = (EntityId)null,
                 DestinationUrl = new Uri("http://destination.example.com"),
                 MessageName = "SAMLResponse",
                 InResponseTo = new Saml2Id("InResponseToId"),
