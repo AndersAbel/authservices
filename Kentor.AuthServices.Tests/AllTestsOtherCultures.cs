@@ -46,7 +46,7 @@ namespace Kentor.AuthServices.Tests
 
             var originalUICulture = Thread.CurrentThread.CurrentUICulture;
 
-            var emtpyObjArray = new object[] { };
+            var emptyObjArray = new object[] { };
 
             try
             {
@@ -56,20 +56,20 @@ namespace Kentor.AuthServices.Tests
 
                     foreach (var c in testClasses)
                     {
-                        var instance = c.Constructor.Invoke(emtpyObjArray);
+                        var instance = c.Constructor.Invoke(emptyObjArray);
                         if (c.ClassInit != null)
                         {
-                            c.ClassInit.Invoke(instance, emtpyObjArray);
+                            c.ClassInit.Invoke(instance, emptyObjArray);
                         }
                         foreach (var m in c.TestMethods)
                         {
                             if (c.TestInit != null)
                             {
-                                c.TestInit.Invoke(instance, emtpyObjArray);
+                                c.TestInit.Invoke(instance, emptyObjArray);
                             }
                             try
                             {
-                                m.Invoke(instance, emtpyObjArray);
+                                m.Invoke(instance, emptyObjArray);
                             }
                             catch(TargetInvocationException ex)
                             {
@@ -82,13 +82,13 @@ namespace Kentor.AuthServices.Tests
                             {
                                 if (c.TestCleanup != null)
                                 {
-                                    c.TestCleanup.Invoke(instance, emtpyObjArray);
+                                    c.TestCleanup.Invoke(instance, emptyObjArray);
                                 }
                             }
                         }
                         if (c.ClassCleanup != null)
                         {
-                            c.ClassCleanup.Invoke(instance, emtpyObjArray);
+                            c.ClassCleanup.Invoke(instance, emptyObjArray);
                         }
                     }
                 }
