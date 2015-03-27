@@ -19,6 +19,7 @@ namespace Kentor.AuthServices.Tests
         /// </summary>
         [TestMethod]
         [NotReRunnable]
+        [Ignore]
         public void RunAllTestsWithOtherCultures()
         {
             var testClasses = (from t in Assembly.GetExecutingAssembly().DefinedTypes
