@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IdentityModel.Configuration;
 using System.IdentityModel.Metadata;
+using System.IdentityModel.Tokens;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -59,6 +60,17 @@ namespace Kentor.AuthServices.Owin
             get
             {
                 return identityProviders;
+            }
+        }
+
+        /// <summary>
+        /// Security token handler, using this configuration.
+        /// </summary>
+        public Saml2SecurityTokenHandler Saml2SecurityTokenHandler
+        {
+            get
+            {
+                return null;
             }
         }
 

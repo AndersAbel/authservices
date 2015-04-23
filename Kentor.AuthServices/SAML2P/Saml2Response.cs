@@ -25,6 +25,8 @@ namespace Kentor.AuthServices.Saml2P
         /// <summary>Holds all assertion element nodes</summary>
         private IEnumerable<XmlElement> allAssertionElementNodes;
 
+        private readonly IEnumerable<Saml2SecurityToken> assertions;
+
         /// <summary>
         /// Read the supplied Xml and parse it into a response.
         /// </summary>
@@ -46,15 +48,19 @@ namespace Kentor.AuthServices.Saml2P
 
             var x = new XmlDocument()
             {
-                PreserveWhitespace = true
+                PreserveWhitespace = false
             };
             x.LoadXml(xml);
 
             using(var nodeReader = new XmlNodeReader(x.DocumentElement))
             {
-                var keyInfoSerializer = options.SPOptions.Saml2PSecurityTokenHandler.KeyInfoSerializer;
+                var keyInfoSerializer = new InjectingKeyInfoSerializer();
 
-                using (var signatureValidatingReader = new EnvelopedSignatureReader(nodeReader, keyInfoSerializer))
+                using (var signatureValidatingReader =
+                    new EnvelopedSignatureReader(
+                        nodeReader,
+                        keyInfoSerializer,
+                        options.IdentityProviders.SecurityTokenResolver))
                 {
                     if(!signatureValidatingReader.IsStartElement("Response", Saml2Namespaces.Saml2PName))
                     {
@@ -70,18 +76,26 @@ namespace Kentor.AuthServices.Saml2P
                     var inResponseTo = ReadInResponseTo(signatureValidatingReader);
                     var issueInstant = DateTime.Parse(signatureValidatingReader.GetAttribute("IssueInstant"),
                         CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
+                    var destination = ReadDestination(signatureValidatingReader);
+
                     signatureValidatingReader.ReadStartElement("Response", Saml2Namespaces.Saml2PName);
 
-                    var issuer = ReadIssuer(signatureValidatingReader);
+                    var issuer = ReadIssuer(signatureValidatingReader, keyInfoSerializer);
 
                     var status = ReadStatus(signatureValidatingReader);
+
+                    var assertions = ReadAssertions(signatureValidatingReader, options);
+
+                    signatureValidatingReader.ReadEndElement();
 
                     return new Saml2Response(
                         id,
                         inResponseTo,
                         issueInstant,
+                        destination,
                         issuer,
                         status,
+                        assertions,
                         x);
                 }
             }
@@ -97,7 +111,19 @@ namespace Kentor.AuthServices.Saml2P
             return null;
         }
 
-        private static EntityId ReadIssuer(XmlReader reader)
+        private static Uri ReadDestination(XmlReader reader)
+        {
+            var destinationString = reader.GetAttribute("Destination");
+
+            if(destinationString != null)
+            {
+                return new Uri(destinationString);
+            }
+
+            return null;
+        }
+
+        private static EntityId ReadIssuer(XmlReader reader, InjectingKeyInfoSerializer keyInfoSerializer)
         {
             EntityId issuer = null;
             if (reader.IsStartElement("Issuer", Saml2Namespaces.Saml2Name))
@@ -105,6 +131,11 @@ namespace Kentor.AuthServices.Saml2P
                 reader.ReadStartElement();
 
                 issuer = new EntityId(reader.ReadContentAsString().Trim());
+
+                // Important to provide the keyinfoserializer with the issuer
+                // before the signature is read, which is done as soon as
+                // ReadEndElement is called for the issuer element.
+                keyInfoSerializer.Issuer = issuer;
 
                 reader.ReadEndElement();
             }
@@ -121,31 +152,45 @@ namespace Kentor.AuthServices.Saml2P
                 throw new XmlException("Required <saml2p:StatusCode> element not found.");
             }
 
-            return StatusCodeHelper.FromString(reader.GetAttribute("Value"));
+            var statusCode = StatusCodeHelper.FromString(reader.GetAttribute("Value"));
+
+            reader.Skip();
+            reader.ReadEndElement();
+
+            return statusCode;
+        }
+
+        private static IEnumerable<Saml2SecurityToken> ReadAssertions(XmlReader reader, IOptions options)
+        {
+            var assertions = new List<Saml2SecurityToken>();
+            
+            while(reader.IsStartElement("Assertion", Saml2Namespaces.Saml2Name))
+            {
+                assertions.Add((Saml2SecurityToken)options.Saml2SecurityTokenHandler.ReadToken(reader));
+            }
+            
+            return assertions.AsReadOnly();
         }
 
         private Saml2Response(
             Saml2Id id,
             Saml2Id inResponseTo,
             DateTime issueInstant,
+            Uri destination,
             EntityId issuer,
             Saml2StatusCode status,
+            IEnumerable<Saml2SecurityToken> assertions,
             XmlDocument xml)
         {
             this.id = id;
             this.inResponseTo = inResponseTo;
             this.issueInstant = issueInstant;
+            this.destination = destination;
             this.issuer = issuer;
             this.status = status;
+            this.assertions = assertions;
 
             xmlDocument = xml;
-
-            var destinationUrlString = xmlDocument.DocumentElement.Attributes["Destination"].GetValueIfNotNull();
-
-            if (destinationUrlString != null)
-            {
-                destinationUrl = new Uri(destinationUrlString);
-            }
         }
 
         /// <summary>
@@ -154,17 +199,17 @@ namespace Kentor.AuthServices.Saml2P
         /// <param name="issuer">Issuer of the response.</param>
         /// <param name="issuerCertificate">The certificate to use when signing
         /// this response in XML form.</param>
-        /// <param name="destinationUrl">The destination Uri for the message</param>
+        /// <param name="destination">The destination Url for the message</param>
         /// <param name="inResponseTo">In response to id</param>
         /// <param name="claimsIdentities">Claims identities to be included in the 
         /// response. Each identity is translated into a separate assertion.</param>
         public Saml2Response(EntityId issuer, X509Certificate2 issuerCertificate,
-            Uri destinationUrl, string inResponseTo, params ClaimsIdentity[] claimsIdentities)
+            Uri destination, string inResponseTo, params ClaimsIdentity[] claimsIdentities)
         {
             this.issuer = issuer;
             this.claimsIdentities = claimsIdentities;
             this.issuerCertificate = issuerCertificate;
-            this.destinationUrl = destinationUrl;
+            this.destination = destination;
             if (inResponseTo != null)
             {
                 this.inResponseTo = new Saml2Id(inResponseTo);
@@ -222,9 +267,9 @@ namespace Kentor.AuthServices.Saml2P
 
             var responseElement = xml.CreateElement("saml2p", "Response", Saml2Namespaces.Saml2PName);
 
-            if (DestinationUrl != null)
+            if (Destination != null)
             {
-                responseElement.SetAttributeNode("Destination", "").Value = DestinationUrl.ToString();
+                responseElement.SetAttributeNode("Destination", "").Value = Destination.ToString();
             }
 
             responseElement.SetAttributeNode("ID", "").Value = id.Value;
@@ -299,16 +344,16 @@ namespace Kentor.AuthServices.Saml2P
             }
         }
 
-        readonly Uri destinationUrl;
+        readonly Uri destination;
 
         /// <summary>
         /// The destination of the response message.
         /// </summary>
-        public Uri DestinationUrl
+        public Uri Destination
         {
             get
             {
-                return destinationUrl;
+                return destination;
             }
         }
 

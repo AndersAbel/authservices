@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IdentityModel.Configuration;
 using System.IdentityModel.Metadata;
+using System.IdentityModel.Tokens;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,5 +26,11 @@ namespace Kentor.AuthServices.Configuration
         /// Information about known identity providers.
         /// </summary>
         IdentityProviderDictionary IdentityProviders { get; }
+
+        /// <summary>
+        /// A Saml2 Security token handler instance configured to handle
+        /// assertions from the known identity providers.
+        /// </summary>
+        Saml2SecurityTokenHandler Saml2SecurityTokenHandler { get; }
     }
 }

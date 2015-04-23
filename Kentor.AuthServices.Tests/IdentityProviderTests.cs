@@ -60,7 +60,7 @@ namespace Kentor.AuthServices.Tests
             var expected = new Saml2AuthenticationRequest()
             {
                 AssertionConsumerServiceUrl = urls.AssertionConsumerServiceUrl,
-                DestinationUrl = idp.SingleSignOnServiceUrl,
+                Destination = idp.SingleSignOnServiceUrl,
                 Issuer = options.SPOptions.EntityId,
                 AttributeConsumingServiceIndex = 0,
             };
@@ -82,7 +82,7 @@ namespace Kentor.AuthServices.Tests
             var expected = new Saml2AuthenticationRequest()
             {
                 AssertionConsumerServiceUrl = urls.AssertionConsumerServiceUrl,
-                DestinationUrl = idp.SingleSignOnServiceUrl,
+                Destination = idp.SingleSignOnServiceUrl,
                 Issuer = options.SPOptions.EntityId,
                 AttributeConsumingServiceIndex = null
             };

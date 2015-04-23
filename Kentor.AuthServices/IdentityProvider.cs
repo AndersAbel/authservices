@@ -218,7 +218,7 @@ namespace Kentor.AuthServices
 
             var authnRequest = new Saml2AuthenticationRequest()
             {
-                DestinationUrl = SingleSignOnServiceUrl,
+                Destination = SingleSignOnServiceUrl,
                 AssertionConsumerServiceUrl = authServicesUrls.AssertionConsumerServiceUrl,
                 Issuer = spOptions.EntityId,
                 // For now we only support one attribute consuming service.

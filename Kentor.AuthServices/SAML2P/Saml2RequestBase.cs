@@ -73,7 +73,7 @@ namespace Kentor.AuthServices.Saml2P
         /// <summary>
         /// The destination of the request.
         /// </summary>
-        public Uri DestinationUrl { get; set; }
+        public Uri Destination { get; set; }
 
         /// <summary>
         /// The issuer of the request.
@@ -98,9 +98,9 @@ namespace Kentor.AuthServices.Saml2P
             yield return new XAttribute("Version", Version);
             yield return new XAttribute("IssueInstant", IssueInstant);
 
-            if (DestinationUrl != null)
+            if (Destination != null)
             {
-                yield return new XAttribute("Destination", DestinationUrl);
+                yield return new XAttribute("Destination", Destination);
             }
 
             if (Issuer != null && !string.IsNullOrEmpty(Issuer.Id))

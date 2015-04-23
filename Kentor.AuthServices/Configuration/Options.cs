@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Deployment.Internal.CodeSigning;
 using System.IdentityModel.Configuration;
 using System.IdentityModel.Metadata;
+using System.IdentityModel.Tokens;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -40,6 +41,7 @@ namespace Kentor.AuthServices.Configuration
         public Options(ISPOptions spOptions)
         {
             this.spOptions = spOptions;
+            saml2SecurityTokenHandler = Saml2SecurityTokenHandlerFactory.Create(this);
         }
 
         private readonly ISPOptions spOptions;
@@ -69,6 +71,19 @@ namespace Kentor.AuthServices.Configuration
             }
         }
 
+        private readonly Saml2SecurityTokenHandler saml2SecurityTokenHandler;
+
+        /// <summary>
+        /// Security token handler, for this set of options.
+        /// </summary>
+        public Saml2SecurityTokenHandler Saml2SecurityTokenHandler
+        {
+            get
+            {
+                return saml2SecurityTokenHandler;
+            }
+        }
+        
         static internal readonly string RsaSha256Namespace = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
 
         /// <summary>

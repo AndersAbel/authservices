@@ -29,7 +29,7 @@ namespace Kentor.AuthServices.WebSso
                 throw new ArgumentNullException("message");
             }
 
-            return binding.Bind(message.ToXml(), message.DestinationUrl, message.MessageName);
+            return binding.Bind(message.ToXml(), message.Destination, message.MessageName);
         }
     }
 }

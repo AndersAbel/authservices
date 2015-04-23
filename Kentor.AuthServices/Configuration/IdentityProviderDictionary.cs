@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Metadata;
+using System.IdentityModel.Selectors;
+using System.IdentityModel.Tokens;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,6 +25,14 @@ namespace Kentor.AuthServices.Configuration
     {
         private Dictionary<EntityId, IdentityProvider> dictionary =
             new Dictionary<EntityId, IdentityProvider>(EntityIdEqualityComparer.Instance);
+
+        /// <summary>
+        /// Ctor
+        /// </summary>
+        public IdentityProviderDictionary()
+        {
+            securityTokenResolver = new IdentityProviderDictionarySecurityTokenResolver(this);
+        }
 
         /// <summary>
         /// Gets an idp from the entity id.
@@ -140,6 +150,16 @@ namespace Kentor.AuthServices.Configuration
             lock(dictionary)
             {
                 dictionary.Remove(idp);
+            }
+        }
+
+        private readonly SecurityTokenResolver securityTokenResolver;
+
+        internal SecurityTokenResolver SecurityTokenResolver
+        {
+            get
+            {
+                return securityTokenResolver;
             }
         }
     }
